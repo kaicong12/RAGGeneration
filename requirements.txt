@@ -1,0 +1,4 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0.post1
+aiomysql==0.2.0
+cryptography==41.0.5
