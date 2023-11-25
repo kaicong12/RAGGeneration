@@ -19,6 +19,6 @@ if [ ! -f "$input_file" ]; then
 fi
 
 python3 word2CSV.py "$input_file" "$word2CSV_path"
-python3 chunkify_csv.py "$word2CSV_path" "$chunkifiedCSV_path"
+python3 csv_bruteforce_chunking.py "$word2CSV_path" "$chunkifiedCSV_path"
 python3 get_embeddings.py "$chunkifiedCSV_path" "$csvWithEmbedding_path"
 node insert.mjs "${csvWithEmbedding_path}" "${collection_name}"

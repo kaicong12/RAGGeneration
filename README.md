@@ -35,7 +35,9 @@ Once you have the prerequisites installed, follow these steps to set up the appl
      pip install -r requirements.txt
      ```
 
-4. **Start the Application**: From the root of the repository, start the application using the following command:
+4. **Change SQL Database Credentials**: modify the .env file in root and change the SQL database credentials
+
+5. **Start the Application**: From the root of the repository, start the application using the following command:
    ```bash
    uvicorn main:app --reload
    ```

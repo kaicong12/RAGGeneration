@@ -4,8 +4,8 @@ import csv from 'csv-parser'
 import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 dotenv.config({ path: '../.env' })
 
-const HOST = process.env.HOST || 'localhost'
-const PORT = process.env.PORT || '19530'
+const HOST = process.env.MILVUS_HOST || 'localhost'
+const PORT = process.env.MILVUS_PORT || '19530'
 const address = `${HOST}:${PORT}`
 const client = new MilvusClient({ address: address });
 

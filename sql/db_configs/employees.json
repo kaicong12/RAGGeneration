@@ -1,0 +1,20 @@
+{
+    "departments": {
+        "description": "Lists all departments in the organization, usually including a department ID and department name."
+    },
+    "employees": {
+        "description": "Contains details about each employee, such as employee ID, birth date, first name, last name, gender, and hire date."
+    },
+    "salaries": {
+        "description": "Stores salary information for each employee, including employee ID, salary amount, and the dates for which each salary is valid."
+    },
+    "titles": {
+        "description": "Holds the job titles of employees, including employee ID, title name, and the dates during which each title is held."
+    },
+    "dept_emp": {
+        "description": " A junction table that shows which department each employee belongs to, including dates of association."
+    },
+    "dept_manager": {
+        "description": "Indicates which employees are managers of departments, along with the respective dates of their management terms."
+    }
+}

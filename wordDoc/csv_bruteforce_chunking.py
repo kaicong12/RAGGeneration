@@ -6,6 +6,7 @@ the "sentence" will be broken down into words and even characters if needed.
 Token limit (approx) for each chunk is set with TOKEN_LIMIT.
 Don't set TOKEN_LIMIT too close to model limit, eg. if model limit is 4096, TOKEN_LIMIT should be <= 3800.
 '''
+
 import argparse
 import regex as re
 import tiktoken
