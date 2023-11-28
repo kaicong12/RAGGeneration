@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 
+
+class SplitDocQueryPayload(BaseModel):
+    collection_name: str
+    doc_path: str
+
 class SQLQueryPayload(BaseModel):
-    question: str
     table_name: str

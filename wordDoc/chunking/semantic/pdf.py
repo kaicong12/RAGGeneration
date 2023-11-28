@@ -7,12 +7,16 @@ import pandas as pd
 from collections import deque
 from httpx import ReadTimeout
 from openai import AsyncClient
+from docx import Document
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # MODEL = 'gpt-3.5-turbo-1106'
 MODEL = 'gpt-4-1106-preview'
-client = AsyncClient(timeout=10.0)
-docs_inpath = 'pdfs'
-docs_outpath = 'pdfs_out'
+client = AsyncClient(api_key=os.getenv('OPENAI_API_KEY'), timeout=10.0)
+docs_inpath = 'wordDoc/docs_in'
+docs_outpath = 'word_out'
 para_group_size = 40
 code_pattern = re.compile('``` ?[Pp]ython\n(?:(?!```)[\S\s])+\n```')
 
@@ -28,6 +32,7 @@ async def main():
     all_splitted_sections = []
     os.makedirs(docs_outpath, exist_ok=True)
     all_doc_outpath = os.path.join(docs_outpath, 'combined.csv')
+
     for root, _, files in os.walk(docs_inpath):
         for file in files:
             doc_inpath = os.path.join(root, file)
@@ -39,11 +44,11 @@ async def main():
             page_nums = deque(maxlen=para_group_size)
             sections = {}
             splitted_sections = []
-            all_paras = [[block[4], page.number + 1] for page in fitz.open(doc_inpath) for block in page.get_text('blocks')]
-            num_paras = len(all_paras)
+            doc = Document(doc_inpath)
             j = 0
-            for i, (para, page_num) in enumerate(all_paras):
+            for para in doc.paragraphs:
                 text = para.strip()
+                print(text, "text")
                 if text:
                     marker = f'【{j}†source】'
                     j += 1
@@ -86,11 +91,13 @@ async def main():
                                 print(f'Code: {code_segment}')
                                 section_markers = eval(code_segment[8:].lstrip()[1:].lstrip())
                                 print(f'Sections: {section_markers}')
+                        
                         section_marker_iter = iter(section_markers)
                         curr_section_marker = next(section_marker_iter)
                         curr_section_list = []
                         to_delete_markers = []
                         text_len = 0
+
                         try:
                             for marker, content in list(sections.items()):
                                 if marker == curr_section_marker:

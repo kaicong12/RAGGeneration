@@ -2,6 +2,8 @@ from fastapi import HTTPException
 import aiomysql
 import os
 import json
+import pandas as pd
+
 
 
 async def get_column_descriptions(rows, column_names, table_name, openai_client):
@@ -16,23 +18,26 @@ async def get_column_descriptions(rows, column_names, table_name, openai_client)
 
     table_description = table_data[table_name].get("description", "This table has no description.")
     
-    prompt = f""" you are given the following table named: {table_name}. The table has the following description: {table_description}.
+    prompt = f"""You are given the following table named: {table_name}. The table has the following description: {table_description}.
     The table "{table_name}" has the following columns: {column_names}. And here are some of the example data each column has: {rows}.
     Based on the given data from the table, could you generate a description for each of the column on what the column is about.
+    Just tell me the descriptions for each column without further elaboration. Present in this format: <column_name>: <column description>
     """
 
     completion = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-1106",
         messages=[
             {"role": "system", "content": "You are an expert data analyst, skilled in explaining complex SQL tables to non-business users on what the table data is about."},
             {"role": "user", "content": prompt}
         ]
     )
 
-    return completion.choices[0].message.content
+    bot_response = completion.choices[0].message.content
+    return bot_response
 
 
-async def handler(question, table_name, db_pool, openai_client):
+
+async def handler(table_name, db_pool, openai_client):
     # db_pool variable has been set in main.py as global variable
     if db_pool is None:
         raise HTTPException(status_code=401, detail="Database connection pool is not available")
@@ -54,10 +59,15 @@ async def handler(question, table_name, db_pool, openai_client):
             await cursor.execute(f"SELECT * FROM {table_name} LIMIT 100")
             rows = await cursor.fetchall()
 
+            print(column_names, rows)
+
             # # Feed the data to ChatGPT and get descriptions for each column
+            # output is a pd dataframe with 2 columns: column_name and column_description
             column_descriptions = await get_column_descriptions(rows, column_names, table_name, openai_client)
+            data_list =  [line.split(": ") for line in column_descriptions.strip().split("\n")]
+            data_dict_list = [{key_value[0]: key_value[1]} for key_value in data_list]
 
     return {
         "code": 200,
-        "message": column_descriptions
+        "descriptions": data_dict_list
     }

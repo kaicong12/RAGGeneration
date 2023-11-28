@@ -1,12 +1,17 @@
-from fastapi import FastAPI, HTTPException
-from sql.payload import SQLQueryPayload
+from openai import OpenAI
+from pymilvus import connections, db
+
+from fastapi import FastAPI, HTTPException, File, UploadFile, status
+from sql.payload import SQLQueryPayload, SplitDocQueryPayload
 from sql.handler import handler
 from sql.connection import get_conn_pool
 from contextlib import asynccontextmanager
-
-from openai import OpenAI
+from firebase.connection import bucket, db_ref
+from wordDoc.chunking.semantic.word import split_handler
 
 import os
+import uuid
+import tempfile
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -24,6 +29,12 @@ async def lifespan(app: FastAPI):
 
     global openai_client
     openai_client = OpenAI()
+
+    connections.connect(
+        host=os.getenv("MILVUS_HOST"),
+        port=os.getenv("MILVUS_PORT")
+    )
+
     yield
     # close sql connection on app shutdown
 
@@ -34,13 +45,58 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/sql_insights")
+@app.post("/api/upload_doc", status_code=status.HTTP_201_CREATED)
+async def upload_doc(file: UploadFile = File(...)):
+    if not file.filename.endswith('.docx'):
+        return {"error": "File is not a Word document"}
+
+    try:
+        # Generate a unique filename
+        unique_filename = str(uuid.uuid4()) + ".docx"
+
+        blob = bucket.blob(f'wordDoc/{unique_filename}')
+        blob.upload_from_string(await file.read(), content_type=file.content_type)
+
+        # Get the URL of the uploaded file
+        blob.make_public()
+        file_url = blob.public_url
+
+        db_ref.child('uploaded_docs').push({
+            'filename': file.unique_filename,
+            'storage_path': file_url
+        })
+
+        return {  "storage_path": file_url }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/split_doc", status_code=status.HTTP_201_CREATED)
+async def split_docs(payload: SplitDocQueryPayload):
+    
+    # download document from cloud storage into a tmp dir
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        blob = bucket.blob(payload.doc_path)
+        local_file_path = os.path.join(tmp_dir, "temp_doc.docx")
+        blob.download_to_filename(local_file_path)
+
+        # split the word doc and produce a dataframe
+        await split_handler(tmp_dir, f"{tmp_dir}_out")
+
+        # insert the dataframe into milvus
+        db.create_database("book")
+
+    return {
+        'message': 'Records have been inserted'
+    }
+
+@app.post("/api/sql_insights")
 async def get_sql_insights(payload: SQLQueryPayload):
     # table_name and question validation performed by FastAPI through the Pydantic library
     global db_pool, openai_client
-    question, table_name = payload.question, payload.table_name
+    table_name = payload.table_name
     if db_pool is None:
         raise HTTPException(status_code=503, detail="Database connection is not available")
     
-    return await handler(question, table_name, db_pool, openai_client)
+    return await handler(table_name, db_pool, openai_client)
     
