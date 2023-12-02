@@ -2,7 +2,6 @@ from fastapi import HTTPException
 import aiomysql
 import os
 import json
-import pandas as pd
 
 
 
@@ -37,7 +36,7 @@ async def get_column_descriptions(rows, column_names, table_name, openai_client)
 
 
 
-async def handler(table_name, db_pool, openai_client):
+async def sql_handler(table_name, db_pool, openai_client):
     # db_pool variable has been set in main.py as global variable
     if db_pool is None:
         raise HTTPException(status_code=401, detail="Database connection pool is not available")

@@ -7,3 +7,8 @@ class SplitDocQueryPayload(BaseModel):
 
 class SQLQueryPayload(BaseModel):
     table_name: str
+
+class ChatWithPDFPayload(BaseModel):
+    user_id: str
+    pdf_id: str
+    user_question: str
