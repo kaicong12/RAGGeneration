@@ -1,5 +1,5 @@
 from openai import OpenAI
-from pymilvus import connections, db
+from pymilvus import connections
 
 from fastapi import FastAPI, HTTPException, File, UploadFile, status
 from sql.payload import SQLQueryPayload, SplitDocQueryPayload
@@ -8,9 +8,12 @@ from sql.connection import get_conn_pool
 from contextlib import asynccontextmanager
 from firebase.connection import bucket, db_ref
 from wordDoc.chunking.semantic.word import split_handler
+from wordDoc.utils.process_data import process_csv_for_insert
+from wordDoc.milvus.insert import insert_data
 
 import os
 import uuid
+import json
 import tempfile
 from dotenv import load_dotenv
 load_dotenv()
@@ -45,7 +48,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/api/upload_doc", status_code=status.HTTP_201_CREATED)
+@app.post("/api/upload_doc")
 async def upload_doc(file: UploadFile = File(...)):
     if not file.filename.endswith('.docx'):
         return {"error": "File is not a Word document"}
@@ -62,11 +65,11 @@ async def upload_doc(file: UploadFile = File(...)):
         file_url = blob.public_url
 
         db_ref.child('uploaded_docs').push({
-            'filename': file.unique_filename,
+            'filename': unique_filename,
             'storage_path': file_url
         })
 
-        return {  "storage_path": file_url }
+        return { "storage_path": file_url }
     except Exception as e:
         return {"error": str(e)}
 
@@ -77,6 +80,10 @@ async def split_docs(payload: SplitDocQueryPayload):
     # download document from cloud storage into a tmp dir
     with tempfile.TemporaryDirectory() as tmp_dir:
         blob = bucket.blob(payload.doc_path)
+        # Use the filename as the uuid
+        file_name_with_ext = os.path.basename(payload.doc_path)
+        file_uuid, _ = os.path.splitext(file_name_with_ext)
+
         local_file_path = os.path.join(tmp_dir, "temp_doc.docx")
         blob.download_to_filename(local_file_path)
 
@@ -84,7 +91,8 @@ async def split_docs(payload: SplitDocQueryPayload):
         await split_handler(tmp_dir, f"{tmp_dir}_out")
 
         # insert the dataframe into milvus
-        db.create_database("book")
+        milvus_data = process_csv_for_insert(os.path.join(f"{tmp_dir}_out", "combined.csv"), file_uuid)
+        await insert_data(milvus_data, payload.collection_name)
 
     return {
         'message': 'Records have been inserted'
