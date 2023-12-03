@@ -27,6 +27,7 @@ async def create_collection_if_missing(collection_name):
         FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
         # file ID, used to retrieve all the records which belong to one file
         FieldSchema(name="file_id", dtype=DataType.VARCHAR, max_length=2000),
+        FieldSchema(name="description", dtype=DataType.VARCHAR, max_length=2000),
         FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
         FieldSchema(name="content", dtype=DataType.VARCHAR, max_length=30000),
         FieldSchema(name="num_tokens", dtype=DataType.INT64, max_length=2000)
